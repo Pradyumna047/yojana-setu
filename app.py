@@ -7,7 +7,21 @@ import requests
 from logging_utils import append_log_entry, fetch_all_logs
 
 # ======================================================================
-# 1. GCP CONFIGURATION
+# 1. STREAMLIT INITIALIZATION (Must be the absolute first execution)
+# ======================================================================
+st.set_page_config(page_title="Yojana Setu", page_icon="🇮🇳", layout="wide")
+
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = False
+
+# Preserve conversation state across widget reruns
+if "current_query" not in st.session_state:
+    st.session_state.current_query = None
+if "current_response" not in st.session_state:
+    st.session_state.current_response = None
+
+# ======================================================================
+# 2. GCP CONFIGURATION
 # ======================================================================
 PROJECT_ID = "yojana-setu-finder"
 LOCATION = "global"
@@ -51,15 +65,20 @@ LABELS = {
 def get_label(key: str, lang: str) -> str:
     return LABELS.get(key, {}).get(lang, LABELS.get(key, {}).get("English", key))
 
-
 # ======================================================================
-# 2. REAL IP DETECTION
+# 3. REAL IP DETECTION (Optimized for local and production proxies)
 # ======================================================================
 def get_client_ip():
     try:
         header_value = st.context.headers.get("X-Forwarded-For", "")
         if header_value:
             return header_value.split(",")[0].strip()
+    except Exception:
+        pass
+    try:
+        ip = st.context.ip_address
+        if ip and ip not in ["127.0.0.1", "::1"]:
+            return ip
     except Exception:
         pass
     return None
@@ -77,7 +96,7 @@ def detect_user_state(ip_addr):
     return "Other"
 
 # ======================================================================
-# 3. RAG QUERY FUNCTION
+# 4. RAG QUERY FUNCTION
 # ======================================================================
 def query_yojana_rag(search_query: str, user_context: str, target_language: str) -> str:
     client = discoveryengine.SearchServiceClient()
@@ -123,18 +142,13 @@ def query_yojana_rag(search_query: str, user_context: str, target_language: str)
         return f"Error executing RAG search: {str(e)}"
 
 # ======================================================================
-# 4. STREAMLIT UI (REDESIGNED + DARK MODE)
+# 5. STREAMLIT STYLING (Optimized variables and UI boundaries)
 # ======================================================================
-if "dark_mode" not in st.session_state:
-    st.session_state.dark_mode = False
-
-st.set_page_config(page_title="Yojana Setu", page_icon="🇮🇳", layout="wide")
-
-bg_light = "linear-gradient(135deg, #fdfcfb 0%, #e2d1f9 100%)"
-bg_dark = "linear-gradient(135deg, #1f2933 0%, #111827 100%)"
+bg_light = "linear-gradient(135deg, #fffdfa 0%, #f0f7f4 100%)"
+bg_dark = "linear-gradient(135deg, #0a1128 0%, #000411 100%)"
 card_bg_light = "#ffffff"
 card_bg_dark = "#111827"
-text_color_light = "#222"
+text_color_light = "#222222"
 text_color_dark = "#f9fafb"
 
 bg_main = bg_dark if st.session_state.dark_mode else bg_light
@@ -153,110 +167,125 @@ st.markdown(f"""
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 16px;
-    margin-bottom: 8px;
+    padding: 12px 20px;
+    margin-bottom: 12px;
 }}
 
 .nav-left {{
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }}
 
 .nav-logo {{
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #FF9933 0%, #128807 40%, #1A73E8 100%);
+    background: radial-gradient(circle at 30% 30%, #FF9933 0%, #128807 45%, #000080 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 700;
 }}
 
 .nav-title {{
-    font-size: 18px;
+    font-size: 20px;
     font-weight: 600;
+    color: {text_color};
 }}
 
 .nav-right {{
-    font-size: 12px;
+    font-size: 13px;
     opacity: 0.8;
+    color: {text_color};
 }}
 
 /* Hero header */
 .hero-container {{
-    background: linear-gradient(120deg, #FF9933 0%, #128807 50%, #1A73E8 100%);
-    padding: 18px 24px;
-    border-radius: 14px;
+    background: linear-gradient(120deg, #FF9933 0%, #128807 50%, #000080 100%);
+    padding: 24px 32px;
+    border-radius: 16px;
     color: white;
-    box-shadow: 0 8px 18px rgba(0,0,0,0.18);
-    margin-bottom: 18px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.16);
+    margin-bottom: 24px;
 }}
 
 .hero-title {{
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 700;
     letter-spacing: 0.03em;
 }}
 
 .hero-subtitle {{
-    font-size: 14px;
-    margin-top: 4px;
-    opacity: 0.9;
+    font-size: 15px;
+    margin-top: 6px;
+    opacity: 0.95;
 }}
 
 /* Tabs */
 .stTabs [role="tablist"] {{
-    gap: 8px;
+    gap: 10px;
+    padding-bottom: 8px;
 }}
 .stTabs [role="tab"] {{
-    padding: 8px 16px;
+    padding: 10px 20px;
     border-radius: 999px;
     border: 1px solid #e0e0e0;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}}
+.stTabs [role="tab"]:hover {{
+    border-color: #000080;
+    color: #000080;
 }}
 .stTabs [role="tab"][aria-selected="true"] {{
     background-color: #128807;
-    color: white;
-    border-color: #0c6304;
+    color: white !important;
+    border-color: #128807;
 }}
 
 /* Badge */
 .detected-badge {{
-    background-color: rgba(26, 115, 232, 0.08);
-    padding: 6px 12px;
+    background-color: rgba(0, 0, 128, 0.06);
+    padding: 8px 16px;
     border-radius: 999px;
-    color: #1A73E8;
+    color: #000080;
     font-weight: 600;
-    border: 1px solid rgba(26, 115, 232, 0.25);
+    border: 1px solid rgba(0, 0, 128, 0.2);
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 12px;
+    gap: 8px;
+    margin-bottom: 18px;
 }}
 
 /* Cards with subtle animation */
 .card {{
     background-color: {card_bg};
-    border-radius: 14px;
-    padding: 16px 18px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.10);
-    margin-bottom: 16px;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }}
 .card:hover {{
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}}
+
+.card-subtext {{
+    font-size: 13px;
+    opacity: 0.7;
+    margin-bottom: 12px;
 }}
 
 /* Sidebar card */
 .sidebar-card {{
     background-color: {card_bg};
-    border-radius: 14px;
-    padding: 14px 16px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
 }}
 
 /* Buttons */
@@ -267,29 +296,33 @@ st.markdown(f"""
     border: none;
     width: 100%;
     font-weight: 600;
-    padding: 8px 0;
+    padding: 10px 0;
+    box-shadow: 0 4px 12px rgba(18, 136, 7, 0.2);
+    transition: all 0.2s ease;
 }}
 .stButton>button:hover {{
     background: linear-gradient(135deg, #0c6304 0%, #094a03 100%);
+    box-shadow: 0 6px 16px rgba(18, 136, 7, 0.3);
+    transform: translateY(-1px);
 }}
 
 /* Chat input */
 div[data-baseweb="textarea"] textarea {{
-    border-radius: 12px !important;
+    border-radius: 14px !important;
 }}
 
 /* Metrics card */
 .metric-card {{
     background-color: {card_bg};
-    border-radius: 14px;
-    padding: 12px 14px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+    border-radius: 16px;
+    padding: 16px 20px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
 }}
 
 /* Footer */
 .footer {{
-    margin-top: 24px;
-    font-size: 11px;
+    margin-top: 32px;
+    font-size: 12px;
     color: #888;
     text-align: center;
 }}
@@ -337,7 +370,7 @@ tab_citizen, tab_admin = st.tabs([
 ])
 
 # ======================================================================
-# 5. CITIZEN TAB
+# 5. CITIZEN TAB (Integrated with unified session state logic)
 # ======================================================================
 if "detected_state" not in st.session_state:
     ip = get_client_ip()
@@ -347,7 +380,7 @@ if "detected_state" not in st.session_state:
 with tab_citizen:
     col_main, col_side = st.columns([2.3, 1.2])
 
-    # Sidebar first (so variables exist)
+    # Sidebar setup
     with col_side:
         st.markdown("<div class='sidebar-card'>", unsafe_allow_html=True)
         initial_state = st.session_state.active_state
@@ -369,10 +402,10 @@ with tab_citizen:
         # Language selection logic with special case for "Other"
         if selected_state == "Other":
             lang_options = ["Hindi", "English"]
-            default_index = 0   # auto-select Hindi
+            default_index = 0   
         else:
             lang_options = [mapped_language, "English"]
-            default_index = 0   # auto-select regional language
+            default_index = 0   
 
         selected_lang = st.radio("Display AI responses in:", lang_options, index=default_index)
 
@@ -394,7 +427,7 @@ with tab_citizen:
         f"Daughter Under 10: {has_daughter}"
     )
 
-    # Main column
+    # Main interaction panel
     with col_main:
         st.markdown(
             f"<span class='detected-badge'>📍 Location detected: <strong>{st.session_state.detected_state}</strong></span>",
@@ -403,7 +436,7 @@ with tab_citizen:
 
         st.markdown(
             "<div class='card'><h4>⚡ Quick Eligibility Checks</h4>"
-            "<p style='font-size:13px;color:#bbb;margin-bottom:10px;'>Tap a shortcut or ask your own question below.</p>",
+            "<p class='card-subtext'>Tap a shortcut or ask your own question below.</p>",
             unsafe_allow_html=True,
         )
 
@@ -415,11 +448,13 @@ with tab_citizen:
             suggested_query = "Can I get a gas connection under PMUY?"
         if col3.button("👧 Sukanya Samriddhi Savings"):
             suggested_query = "Can I open a Sukanya Samriddhi account?"
+        st.markdown("</div>", unsafe_allow_html=True)
 
         st.write("")
         user_input = st.chat_input("Ask about any welfare scheme...")
         active_query = user_input or suggested_query
 
+        # Evaluate query and persist to session state to prevent refresh drops
         if active_query:
             with st.spinner("Analyzing your profile and matching schemes..."):
                 answer = query_yojana_rag(active_query, profile_context, selected_lang)
@@ -444,15 +479,19 @@ with tab_citizen:
                     state=selected_state,
                     language=selected_lang
                 )
+                
+                # Save dynamically to session state
+                st.session_state.current_query = active_query
+                st.session_state.current_response = answer
 
-            st.markdown("</div>", unsafe_allow_html=True)
-
+        # Display ONLY the single most recent result (Single-response clean layout)
+        if st.session_state.current_query and st.session_state.current_response:
             st.markdown("<div class='card'>", unsafe_allow_html=True)
             st.write("### 🎯 Current Inquiry Result")
             with st.chat_message("user"):
-                st.markdown(active_query)
+                st.markdown(st.session_state.current_query)
             with st.chat_message("assistant"):
-                st.markdown(answer)
+                st.markdown(st.session_state.current_response)
             st.markdown("</div>", unsafe_allow_html=True)
 
 # ======================================================================
